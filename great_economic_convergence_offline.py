@@ -83,37 +83,6 @@ def make_animation(df, years, values):
 
     y = np.arange(len(df))
     
-    # Custom color palette function based on growth rate tier
-    def get_color(value):
-        if value < 20_000:
-            return "#2ecc71"  # Vibrant Emerald Green (6.5%)
-        if value < 40_000:
-            return "#3498db"  # Bright Blue (4.5%)
-        if value < 80_000:
-            return "#f1c40f"  # Warm Gold (2.5%)
-        return "#e74c3c"      # Coral Red (0.5%)
-
-    initial_colors = [get_color(v) for v in values[BASE_YEAR]]
-    bars = ax.barh(y, values[BASE_YEAR], height=0.72, color=initial_colors, edgecolor="none", alpha=0.9)
-
-    max_value = max(float(values[year].max()) for year in years)
-    ax.set_xlim(0, max(120_000, max_value * 1.12))
-    ax.set_ylim(-0.8, len(df) - 0.2)
-    ax.set_yticks(y)
-    ax.set_yticklabels(df["country"], fontsize=10, fontweight="bold", color="#e6edf3")
-    ax.invert_yaxis()
-
-    ax.set_xlabel("GDP per capita (PPP, current international $)", fontsize=12, fontweight="bold", color="#8b949e", labelpad=10)
-    ax.tick_params(colors="#8b949e", labelsize=10)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_color("#30363d")
-    ax.spines["bottom"].set_color("#30363d")
-
-    # Gridlines
-    ax.xaxis.grid(True, linestyle=":", alpha=0.3, color="#8b949e")
-    ax.set_axisbelow(True)
-
     # Dynamic threshold line calculations:
     # Each boundary threshold simulates year-by-year using growth_rate(val).
     # As the $20K boundary grows past $20K, its growth rate dynamically steps down
@@ -133,6 +102,40 @@ def make_animation(df, years, values):
             curr = curr * (1 + rate)
             vals.append(curr)
         threshold_values[cfg["base"]] = vals
+
+    # Helper function to get color based on current position relative to moving vertical lines (th1, th2, th3)
+    def get_bar_color(value, th1, th2, th3):
+        if value < th1:
+            return "#2ecc71"  # Emerald Green (6.5% tier, behind vertical line 1)
+        if value < th2:
+            return "#3498db"  # Bright Blue (4.5% tier, between line 1 and line 2)
+        if value < th3:
+            return "#f1c40f"  # Warm Gold (2.5% tier, between line 2 and line 3)
+        return "#e74c3c"      # Coral Red (0.5% tier, past line 3)
+
+    initial_th1 = threshold_values[20_000][0]
+    initial_th2 = threshold_values[40_000][0]
+    initial_th3 = threshold_values[80_000][0]
+    initial_colors = [get_bar_color(v, initial_th1, initial_th2, initial_th3) for v in values[BASE_YEAR]]
+    bars = ax.barh(y, values[BASE_YEAR], height=0.72, color=initial_colors, edgecolor="none", alpha=0.9)
+
+    max_value = max(float(values[year].max()) for year in years)
+    ax.set_xlim(0, max(120_000, max_value * 1.12))
+    ax.set_ylim(-0.8, len(df) - 0.2)
+    ax.set_yticks(y)
+    ax.set_yticklabels(df["country"], fontsize=10, fontweight="bold", color="#e6edf3")
+    ax.invert_yaxis()
+
+    ax.set_xlabel("GDP per capita (PPP, current international $)", fontsize=12, fontweight="bold", color="#8b949e", labelpad=10)
+    ax.tick_params(colors="#8b949e", labelsize=10)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#30363d")
+    ax.spines["bottom"].set_color("#30363d")
+
+    # Gridlines
+    ax.xaxis.grid(True, linestyle=":", alpha=0.3, color="#8b949e")
+    ax.set_axisbelow(True)
 
     # Create line and text objects for dynamic thresholds
     threshold_lines = []
@@ -159,15 +162,20 @@ def make_animation(df, years, values):
         year = int(years[frame])
         current = values[year]
 
+        # Current positions of dynamic vertical lines in this frame
+        th1 = threshold_values[20_000][frame]
+        th2 = threshold_values[40_000][frame]
+        th3 = threshold_values[80_000][frame]
+
         for bar, value in zip(bars, current):
             bar.set_width(value)
-            bar.set_color(get_color(value))
+            bar.set_color(get_bar_color(value, th1, th2, th3))
 
         # Update dynamic threshold line positions, colors, and label text
         for idx, (cfg, line) in enumerate(threshold_lines):
             curr_th = threshold_values[cfg["base"]][frame]
             curr_rate = growth_rate(curr_th)
-            curr_color = get_color(curr_th)
+            curr_color = get_bar_color(curr_th, th1, th2, th3)
             
             line.set_xdata([curr_th, curr_th])
             line.set_color(curr_color)
