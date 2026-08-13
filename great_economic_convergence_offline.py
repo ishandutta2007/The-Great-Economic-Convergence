@@ -137,6 +137,33 @@ def make_animation(df, years, values):
     ax.xaxis.grid(True, linestyle=":", alpha=0.3, color="#8b949e")
     ax.set_axisbelow(True)
 
+    # Create regional income classification text headers
+    # Region 1: [0, th1] -> "Poor"
+    # Region 2: [th1, th2] -> "Middle Income"
+    # Region 3: [th2, th3] -> "Developed"
+    # Region 4: [th3, xmax] -> "Ultra Developed"
+    region_defs = [
+        {"name": "Poor", "color": "#2ecc71"},
+        {"name": "Middle Income", "color": "#3498db"},
+        {"name": "Developed", "color": "#f1c40f"},
+        {"name": "Ultra Developed", "color": "#e74c3c"},
+    ]
+    region_texts = []
+    for rdef in region_defs:
+        txt = ax.text(
+            0,
+            1.02,
+            rdef["name"].upper(),
+            transform=ax.get_xaxis_transform(),
+            ha="center",
+            va="bottom",
+            fontsize=11,
+            color=rdef["color"],
+            fontweight="bold",
+            alpha=0.85,
+        )
+        region_texts.append((rdef, txt))
+
     # Create line and text objects for dynamic thresholds
     threshold_lines = []
     threshold_texts = []
@@ -166,10 +193,36 @@ def make_animation(df, years, values):
         th1 = threshold_values[20_000][frame]
         th2 = threshold_values[40_000][frame]
         th3 = threshold_values[80_000][frame]
+        xmax = ax.get_xlim()[1]
 
         for bar, value in zip(bars, current):
             bar.set_width(value)
             bar.set_color(get_bar_color(value, th1, th2, th3))
+
+        # Update region header positions and dynamic font scaling
+        regions_bounds = [
+            (0, th1),
+            (th1, th2),
+            (th2, th3),
+            (th3, xmax),
+        ]
+
+        for idx, (left, right) in enumerate(regions_bounds):
+            width = right - left
+            center = left + (width / 2.0)
+            rdef, txt = region_texts[idx]
+            txt.set_x(center)
+            
+            # Dynamically adjust font size if region compresses below width threshold
+            # Approx character width fitting in plot data units
+            text_len = len(rdef["name"])
+            approx_char_width = max_value * 0.015
+            needed_width = text_len * approx_char_width
+            if width < needed_width:
+                scaled_size = max(6.5, 11 * (width / needed_width))
+            else:
+                scaled_size = 11
+            txt.set_fontsize(scaled_size)
 
         # Update dynamic threshold line positions, colors, and label text
         for idx, (cfg, line) in enumerate(threshold_lines):
@@ -190,7 +243,7 @@ def make_animation(df, years, values):
             fontsize=22,
             fontweight="bold",
             color="#ffffff",
-            pad=20,
+            pad=45,
         )
 
         for txt in list(ax.texts):
