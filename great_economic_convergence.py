@@ -34,6 +34,7 @@ MIN_POPULATION = 100_000_000
 
 OUTPUT_FILE = "great_economic_convergence.gif"
 
+
 # Midpoints of the user's proposed growth bands.
 def growth_rate(gdp_pc):
     if gdp_pc < 20_000:
@@ -55,8 +56,11 @@ def wb_indicator(indicator, year):
     r.raise_for_status()
     data = r.json()[1]
     return pd.DataFrame(
-        [{"iso3": x["countryiso3code"], "value": x["value"]}
-         for x in data if x["countryiso3code"]]
+        [
+            {"iso3": x["countryiso3code"], "value": x["value"]}
+            for x in data
+            if x["countryiso3code"]
+        ]
     )
 
 
@@ -65,15 +69,17 @@ def wb_countries():
     r = requests.get(url, timeout=60)
     r.raise_for_status()
     data = r.json()[1]
-    return pd.DataFrame([
-        {
-            "iso3": x["id"],
-            "country": x["name"],
-            "region": x["region"]["value"],
-        }
-        for x in data
-        if x["region"]["value"] != "Aggregates"
-    ])
+    return pd.DataFrame(
+        [
+            {
+                "iso3": x["id"],
+                "country": x["name"],
+                "region": x["region"]["value"],
+            }
+            for x in data
+            if x["region"]["value"] != "Aggregates"
+        ]
+    )
 
 
 def load_data():
@@ -92,9 +98,11 @@ def load_data():
     df = df.dropna(subset=["gdp_pc", "population"])
     df = df[df["population"] >= MIN_POPULATION].copy()
 
-    return df[["iso3", "country", "gdp_pc", "population"]].sort_values(
-        "gdp_pc"
-    ).reset_index(drop=True)
+    return (
+        df[["iso3", "country", "gdp_pc", "population"]]
+        .sort_values("gdp_pc")
+        .reset_index(drop=True)
+    )
 
 
 def simulate(df):
@@ -142,7 +150,7 @@ def make_animation(df, years, values):
         ax.text(
             threshold,
             1.01,
-            f"${threshold/1000:.0f}K",
+            f"${threshold / 1000:.0f}K",
             transform=ax.get_xaxis_transform(),
             ha="center",
             va="bottom",
@@ -171,7 +179,7 @@ def make_animation(df, years, values):
             label = ax.text(
                 value,
                 y,
-                f"  ${value:,.0f}  ({rate*100:.1f}%)",
+                f"  ${value:,.0f}  ({rate * 100:.1f}%)",
                 va="center",
                 fontsize=8.5,
             )

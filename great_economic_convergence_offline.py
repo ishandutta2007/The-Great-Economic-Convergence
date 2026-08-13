@@ -27,12 +27,8 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 BASE_YEAR = 2024
 TARGET_YEAR = 2100
 
-DATA_FILE = Path(__file__).with_name(
-    "great_economic_convergence_data_2024.csv"
-)
-OUTPUT_FILE = Path(__file__).with_name(
-    "great_economic_convergence.gif"
-)
+DATA_FILE = Path(__file__).with_name("great_economic_convergence_data_2024.csv")
+OUTPUT_FILE = Path(__file__).with_name("great_economic_convergence.gif")
 
 
 def growth_rate(gdp_pc):
@@ -54,9 +50,7 @@ def load_data():
 
     df = pd.read_csv(DATA_FILE)
 
-    required = {
-        "country", "iso3", "gdp_pc_ppp_2024", "population_2024"
-    }
+    required = {"country", "iso3", "gdp_pc_ppp_2024", "population_2024"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"Missing columns in CSV: {sorted(missing)}")
@@ -104,9 +98,12 @@ def make_animation(df, years, values):
     for threshold in [20_000, 40_000, 80_000]:
         ax.axvline(threshold, linestyle="--", linewidth=1.2)
         ax.text(
-            threshold, 1.01, f"${threshold/1000:.0f}K",
+            threshold,
+            1.01,
+            f"${threshold / 1000:.0f}K",
             transform=ax.get_xaxis_transform(),
-            ha="center", va="bottom"
+            ha="center",
+            va="bottom",
         )
 
     def update(frame):
@@ -129,8 +126,9 @@ def make_animation(df, years, values):
         for ypos, value in zip(y, current):
             rate = growth_rate(value)
             label = ax.text(
-                value, ypos,
-                f"  ${value:,.0f}  ({rate*100:.1f}%)",
+                value,
+                ypos,
+                f"  ${value:,.0f}  ({rate * 100:.1f}%)",
                 va="center",
                 fontsize=8.5,
             )
