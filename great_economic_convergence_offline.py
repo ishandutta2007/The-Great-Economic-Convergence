@@ -22,13 +22,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.animation import FuncAnimation, PillowWriter, FFMpegWriter
 
 BASE_YEAR = 2024
 TARGET_YEAR = 2100
 
 DATA_FILE = Path(__file__).with_name("great_economic_convergence_data_2024.csv")
-OUTPUT_FILE = Path(__file__).with_name("great_economic_convergence.gif")
+OUTPUT_GIF_FILE = Path(__file__).with_name("great_economic_convergence.gif")
+OUTPUT_MP4_FILE = Path(__file__).with_name("great_economic_convergence.mp4")
 
 
 def growth_rate(gdp_pc):
@@ -179,12 +180,24 @@ def make_animation(df, years, values):
     print("Displaying animation...")
     plt.show()
 
-    print(f"Saving: {OUTPUT_FILE}")
+    print(f"Saving GIF: {OUTPUT_GIF_FILE}")
     anim.save(
-        OUTPUT_FILE,
+        OUTPUT_GIF_FILE,
         writer=PillowWriter(fps=4),
         dpi=120,
     )
+
+    print(f"Saving MP4: {OUTPUT_MP4_FILE}")
+    try:
+        anim.save(
+            OUTPUT_MP4_FILE,
+            writer=FFMpegWriter(fps=4, extra_args=['-vcodec', 'libx264']),
+            dpi=120,
+        )
+        print("MP4 saved successfully.")
+    except Exception as e:
+        print(f"Could not save MP4 (FFmpeg may not be installed or configured): {e}")
+
     plt.close(fig)
     print("Finished.")
 
