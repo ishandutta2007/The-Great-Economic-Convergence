@@ -114,23 +114,46 @@ def make_animation(df, years, values):
     ax.xaxis.grid(True, linestyle=":", alpha=0.3, color="#8b949e")
     ax.set_axisbelow(True)
 
-    # Threshold lines with badges
-    thresholds = [(20_000, "6.5% tier ($20K)", "#2ecc71"), 
-                  (40_000, "4.5% tier ($40K)", "#3498db"), 
-                  (80_000, "2.5% tier ($80K)", "#f1c40f")]
-    for th, tier_label, color in thresholds:
-        ax.axvline(th, linestyle="--", linewidth=1.5, color=color, alpha=0.6)
-        ax.text(
-            th,
+    # Dynamic threshold line calculations:
+    # Each boundary threshold simulates year-by-year using growth_rate(val).
+    # As the $20K boundary grows past $20K, its growth rate dynamically steps down
+    # (6.5% -> 4.5% -> 2.5% -> 0.5%) so boundaries converge without overtaking.
+    threshold_configs = [
+        {"base": 20_000, "name": "Boundary 1", "color": "#2ecc71"},
+        {"base": 40_000, "name": "Boundary 2", "color": "#3498db"},
+        {"base": 80_000, "name": "Boundary 3", "color": "#f1c40f"},
+    ]
+
+    threshold_values = {}
+    for cfg in threshold_configs:
+        vals = [float(cfg["base"])]
+        curr = float(cfg["base"])
+        for _ in range(len(years) - 1):
+            rate = growth_rate(curr)
+            curr = curr * (1 + rate)
+            vals.append(curr)
+        threshold_values[cfg["base"]] = vals
+
+    # Create line and text objects for dynamic thresholds
+    threshold_lines = []
+    threshold_texts = []
+    for cfg in threshold_configs:
+        init_val = threshold_values[cfg["base"]][0]
+        init_rate = growth_rate(init_val)
+        line = ax.axvline(init_val, linestyle="--", linewidth=1.5, color=cfg["color"], alpha=0.6)
+        txt = ax.text(
+            init_val,
             -0.02,
-            f"${th // 1000}K\n({tier_label})",
+            f"${init_val / 1000:.1f}K ({init_rate * 100:.1f}%)",
             transform=ax.get_xaxis_transform(),
             ha="center",
             va="bottom",
             fontsize=8.5,
-            color=color,
+            color=cfg["color"],
             fontweight="bold",
         )
+        threshold_lines.append((cfg, line))
+        threshold_texts.append((cfg, txt))
 
     def update(frame):
         year = int(years[frame])
@@ -139,6 +162,20 @@ def make_animation(df, years, values):
         for bar, value in zip(bars, current):
             bar.set_width(value)
             bar.set_color(get_color(value))
+
+        # Update dynamic threshold line positions, colors, and label text
+        for idx, (cfg, line) in enumerate(threshold_lines):
+            curr_th = threshold_values[cfg["base"]][frame]
+            curr_rate = growth_rate(curr_th)
+            curr_color = get_color(curr_th)
+            
+            line.set_xdata([curr_th, curr_th])
+            line.set_color(curr_color)
+            
+            _, txt = threshold_texts[idx]
+            txt.set_x(curr_th)
+            txt.set_color(curr_color)
+            txt.set_text(f"${curr_th / 1000:.1f}K ({curr_rate * 100:.1f}%)")
 
         ax.set_title(
             f"The Great Economic Convergence — {year}",
@@ -167,12 +204,12 @@ def make_animation(df, years, values):
 
         return bars
 
-    # Decreased speed: interval 250ms (4 frames per second for smooth viewing)
+    # Slowed down speed: interval 500ms (2 frames per second / 0.5s per year for deliberate viewing)
     anim = FuncAnimation(
         fig,
         update,
         frames=len(years),
-        interval=250,
+        interval=500,
         blit=False,
         repeat=True,
     )
@@ -183,7 +220,7 @@ def make_animation(df, years, values):
     print(f"Saving GIF: {OUTPUT_GIF_FILE}")
     anim.save(
         OUTPUT_GIF_FILE,
-        writer=PillowWriter(fps=4),
+        writer=PillowWriter(fps=2),
         dpi=120,
     )
 
@@ -204,7 +241,7 @@ def make_animation(df, years, values):
     try:
         anim.save(
             OUTPUT_MP4_FILE,
-            writer=FFMpegWriter(fps=4, extra_args=['-vcodec', 'libx264']),
+            writer=FFMpegWriter(fps=2, extra_args=['-vcodec', 'libx264']),
             dpi=120,
         )
         saved_mp4 = True
@@ -214,7 +251,7 @@ def make_animation(df, years, values):
         try:
             import imageio
             reader = imageio.get_reader(OUTPUT_GIF_FILE)
-            fps = reader.get_meta_data().get('fps', 4)
+            fps = reader.get_meta_data().get('fps', 2)
             writer = imageio.get_writer(OUTPUT_MP4_FILE, fps=fps)
             for frame in reader:
                 writer.append_data(frame)
