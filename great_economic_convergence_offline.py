@@ -145,6 +145,9 @@ def make_animation(df, years, values):
         repeat=True,
     )
 
+    print("Displaying animation...")
+    plt.show()
+
     print(f"Saving: {OUTPUT_FILE}")
     anim.save(
         OUTPUT_FILE,
