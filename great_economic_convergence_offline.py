@@ -76,34 +76,59 @@ def simulate(df):
 
 
 def make_animation(df, years, values):
-    fig, ax = plt.subplots(figsize=(16, 9))
+    plt.style.use("dark_background")
+    fig, ax = plt.subplots(figsize=(16, 9), facecolor="#0e1117")
+    ax.set_facecolor("#161b22")
 
     y = np.arange(len(df))
-    bars = ax.barh(y, values[BASE_YEAR], height=0.72)
+    
+    # Custom color palette function based on growth rate tier
+    def get_color(value):
+        if value < 20_000:
+            return "#2ecc71"  # Vibrant Emerald Green (6.5%)
+        if value < 40_000:
+            return "#3498db"  # Bright Blue (4.5%)
+        if value < 80_000:
+            return "#f1c40f"  # Warm Gold (2.5%)
+        return "#e74c3c"      # Coral Red (0.5%)
+
+    initial_colors = [get_color(v) for v in values[BASE_YEAR]]
+    bars = ax.barh(y, values[BASE_YEAR], height=0.72, color=initial_colors, edgecolor="none", alpha=0.9)
 
     max_value = max(float(values[year].max()) for year in years)
-    ax.set_xlim(0, max(120_000, max_value * 1.10))
-    ax.set_ylim(-1, len(df))
+    ax.set_xlim(0, max(120_000, max_value * 1.12))
+    ax.set_ylim(-0.8, len(df) - 0.2)
     ax.set_yticks(y)
-    ax.set_yticklabels(df["country"])
+    ax.set_yticklabels(df["country"], fontsize=10, fontweight="bold", color="#e6edf3")
     ax.invert_yaxis()
 
-    ax.set_xlabel("GDP per capita (PPP, current international $)")
-    ax.set_title(
-        f"The Great Economic Convergence — {BASE_YEAR}",
-        fontsize=20,
-        fontweight="bold",
-    )
+    ax.set_xlabel("GDP per capita (PPP, current international $)", fontsize=12, fontweight="bold", color="#8b949e", labelpad=10)
+    ax.tick_params(colors="#8b949e", labelsize=10)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["left"].set_color("#30363d")
+    ax.spines["bottom"].set_color("#30363d")
 
-    for threshold in [20_000, 40_000, 80_000]:
-        ax.axvline(threshold, linestyle="--", linewidth=1.2)
+    # Gridlines
+    ax.xaxis.grid(True, linestyle=":", alpha=0.3, color="#8b949e")
+    ax.set_axisbelow(True)
+
+    # Threshold lines with badges
+    thresholds = [(20_000, "6.5% tier ($20K)", "#2ecc71"), 
+                  (40_000, "4.5% tier ($40K)", "#3498db"), 
+                  (80_000, "2.5% tier ($80K)", "#f1c40f")]
+    for th, tier_label, color in thresholds:
+        ax.axvline(th, linestyle="--", linewidth=1.5, color=color, alpha=0.6)
         ax.text(
-            threshold,
-            1.01,
-            f"${threshold / 1000:.0f}K",
+            th,
+            -0.02,
+            f"${th // 1000}K\n({tier_label})",
             transform=ax.get_xaxis_transform(),
             ha="center",
             va="bottom",
+            fontsize=8.5,
+            color=color,
+            fontweight="bold",
         )
 
     def update(frame):
@@ -112,11 +137,14 @@ def make_animation(df, years, values):
 
         for bar, value in zip(bars, current):
             bar.set_width(value)
+            bar.set_color(get_color(value))
 
         ax.set_title(
             f"The Great Economic Convergence — {year}",
-            fontsize=20,
+            fontsize=22,
             fontweight="bold",
+            color="#ffffff",
+            pad=20,
         )
 
         for txt in list(ax.texts):
@@ -126,21 +154,24 @@ def make_animation(df, years, values):
         for ypos, value in zip(y, current):
             rate = growth_rate(value)
             label = ax.text(
-                value,
+                value + (max_value * 0.008),
                 ypos,
-                f"  ${value:,.0f}  ({rate * 100:.1f}%)",
+                f"${value:,.0f} ({rate * 100:.1f}%)",
                 va="center",
-                fontsize=8.5,
+                fontsize=9,
+                fontweight="bold",
+                color="#e6edf3",
             )
             label._country_value_label = True
 
         return bars
 
+    # Decreased speed: interval 250ms (4 frames per second for smooth viewing)
     anim = FuncAnimation(
         fig,
         update,
         frames=len(years),
-        interval=100,
+        interval=250,
         blit=False,
         repeat=True,
     )
@@ -151,7 +182,7 @@ def make_animation(df, years, values):
     print(f"Saving: {OUTPUT_FILE}")
     anim.save(
         OUTPUT_FILE,
-        writer=PillowWriter(fps=10),
+        writer=PillowWriter(fps=4),
         dpi=120,
     )
     plt.close(fig)
