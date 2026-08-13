@@ -4,6 +4,9 @@
 
 ![Great Economic Convergence Animation](great_economic_convergence.gif)
 
+
+![2047](2047.png)
+
 ---
 
 ## 📌 Overview
