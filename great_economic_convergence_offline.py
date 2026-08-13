@@ -188,15 +188,43 @@ def make_animation(df, years, values):
     )
 
     print(f"Saving MP4: {OUTPUT_MP4_FILE}")
+    saved_mp4 = False
+    
+    # Try finding ffmpeg executable path dynamically if not on system PATH
+    ffmpeg_exe = None
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        pass
+
+    if ffmpeg_exe:
+        plt.rcParams['animation.ffmpeg_path'] = ffmpeg_exe
+
     try:
         anim.save(
             OUTPUT_MP4_FILE,
             writer=FFMpegWriter(fps=4, extra_args=['-vcodec', 'libx264']),
             dpi=120,
         )
-        print("MP4 saved successfully.")
+        saved_mp4 = True
+        print("MP4 saved successfully using matplotlib FFMpegWriter.")
     except Exception as e:
-        print(f"Could not save MP4 (FFmpeg may not be installed or configured): {e}")
+        # Fallback to imageio if FFMpegWriter fails
+        try:
+            import imageio
+            reader = imageio.get_reader(OUTPUT_GIF_FILE)
+            fps = reader.get_meta_data().get('fps', 4)
+            writer = imageio.get_writer(OUTPUT_MP4_FILE, fps=fps)
+            for frame in reader:
+                writer.append_data(frame)
+            writer.close()
+            reader.close()
+            saved_mp4 = True
+            print("MP4 converted and saved successfully from GIF using imageio.")
+        except Exception as e2:
+            print(f"Could not save MP4: {e}")
+            print("Note: To enable MP4 export natively, install FFmpeg on your system or run: pip install imageio[ffmpeg]")
 
     plt.close(fig)
     print("Finished.")
